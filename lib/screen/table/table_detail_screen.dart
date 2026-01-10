@@ -131,7 +131,8 @@ class _TableDetailScreenState extends State<TableDetailScreen> {
           ? const Center(child: CircularProgressIndicator())
           : SfDataGrid(
               source: dataSource,
-              columnWidthMode: ColumnWidthMode.fill,
+              columnWidthMode: ColumnWidthMode.lastColumnFill,//ubah lebar di dalam kotak 
+              rowHeight: 60,//tinggi per kotak di dalam tabel
               loadMoreViewBuilder: (context, loadMoreRows) {
                 return FutureBuilder(
                   future: loadMoreRows(),
@@ -253,7 +254,7 @@ class TableGridSource extends DataGridSource {
       cells: row.getCells().map((cell) {
         return Padding(
           padding: const EdgeInsets.all(8),
-          child: Text(cell.value.toString(), overflow: TextOverflow.ellipsis),
+          child: Text(cell.value.toString(), maxLines:3, softWrap:true, overflow: TextOverflow.fade, style: const TextStyle(fontSize: 14)), //ubah ukuran tabel 
         );
       }).toList(),
     );
