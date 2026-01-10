@@ -14,6 +14,10 @@ class _TableDetailScreenState extends State<TableDetailScreen> {
   String tableName = '';
   bool loading = true;
   bool isSearching = false;
+  int currentPage =
+      0; // 3baris ke bawah ini untuk pagination bukan scrool infinite
+  int totalPage = 0;
+  static const int pageSize = 100;
 
   final TextEditingController searchController = TextEditingController();
 
@@ -35,6 +39,23 @@ class _TableDetailScreenState extends State<TableDetailScreen> {
     super.dispose();
   }
 
+  Future<void> _loadPage(int page) async {
+    setState(() => loading = true);
+
+    final raw = await LocalDatabase.instance.getPageData(
+      widget.tableId,
+      pageSize,
+      page * pageSize,
+    );
+
+    dataSource.replaceWithRaw(raw);
+
+    setState(() {
+      currentPage = page;
+      loading = false;
+    });
+  }
+
   // ================= INIT =================
   Future<void> _init() async {
     final table = await LocalDatabase.instance.getTableById(widget.tableId);
@@ -45,9 +66,13 @@ class _TableDetailScreenState extends State<TableDetailScreen> {
     totalRows = await LocalDatabase.instance.getRowCount(widget.tableId);
     shownRows = totalRows;
 
+    totalPage = (totalRows / pageSize)
+        .ceil(); //in ipagination bukan scrool infinite
+
     dataSource = TableGridSource(tableId: widget.tableId, columns: columns);
 
-    await dataSource.loadInitial();
+    // await dataSource.loadInitial(); uncoment kalau mau infinite scroll
+    await _loadPage(0); //ini untuk pagination bukan scrool infinite
 
     setState(() => loading = false);
   }
@@ -118,7 +143,8 @@ class _TableDetailScreenState extends State<TableDetailScreen> {
                 searchController.clear();
                 isSearching = false;
                 shownRows = totalRows;
-                await dataSource.loadInitial();
+                // await dataSource.loadInitial(); uncoment kalau mau infinite scroll
+                await _loadPage(0); //ini untuk pagination bukan scrool infinite
                 setState(() {});
               } else {
                 setState(() => isSearching = true);
@@ -131,19 +157,20 @@ class _TableDetailScreenState extends State<TableDetailScreen> {
           ? const Center(child: CircularProgressIndicator())
           : SfDataGrid(
               source: dataSource,
-              columnWidthMode: ColumnWidthMode.lastColumnFill,//ubah lebar di dalam kotak 
-              rowHeight: 60,//tinggi per kotak di dalam tabel
-              loadMoreViewBuilder: (context, loadMoreRows) {
-                return FutureBuilder(
-                  future: loadMoreRows(),
-                  builder: (context, snapshot) {
-                    return const SizedBox(
-                      height: 56,
-                      child: Center(child: CircularProgressIndicator()),
-                    );
-                  },
-                );
-              },
+              columnWidthMode:
+                  ColumnWidthMode.lastColumnFill, //ubah lebar di dalam kotak
+              rowHeight: 60, //tinggi per kotak di dalam tabel
+              // loadMoreViewBuilder: (context, loadMoreRows) {
+              //   return FutureBuilder(
+              //     future: loadMoreRows(),
+              //     builder: (context, snapshot) {
+              //       return const SizedBox(
+              //         height: 56,
+              //         child: Center(child: CircularProgressIndicator()),
+              //       );
+              //     },
+              //   );
+              // }, //uncomment ini jika ingin menampilkan loading di bawah saat load more
               columns: columns.map((c) {
                 return GridColumn(
                   columnName: c['name'],
@@ -157,6 +184,53 @@ class _TableDetailScreenState extends State<TableDetailScreen> {
                 );
               }).toList(),
             ),
+      // ================= PAGINATION BAR =================
+      bottomNavigationBar: isSearching
+          ? null
+          : Container(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              color: const Color(0xFF0E5A6F),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // ⏮️ ke halaman pertama
+                  IconButton(
+                    icon: const Icon(Icons.first_page, color: Colors.white),
+                    onPressed: currentPage > 0 ? () => _loadPage(0) : null,
+                  ),
+
+                  // ◀️ halaman sebelumnya
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left, color: Colors.white),
+                    onPressed: currentPage > 0
+                        ? () => _loadPage(currentPage - 1)
+                        : null,
+                  ),
+
+                  // indikator halaman
+                  Text(
+                    '${currentPage + 1} / $totalPage',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+
+                  // ▶️ halaman berikutnya
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right, color: Colors.white),
+                    onPressed: currentPage < totalPage - 1
+                        ? () => _loadPage(currentPage + 1)
+                        : null,
+                  ),
+
+                  // ⏭️ ke halaman terakhir
+                  IconButton(
+                    icon: const Icon(Icons.last_page, color: Colors.white),
+                    onPressed: currentPage < totalPage - 1
+                        ? () => _loadPage(totalPage - 1)
+                        : null,
+                  ),
+                ],
+              ),
+            ),
     );
   }
 }
@@ -166,9 +240,9 @@ class TableGridSource extends DataGridSource {
   final int tableId;
   final List<Map<String, dynamic>> columns;
 
-  static const int pageSize = 50;
+  static const int pageSize = 100; // Jumlah baris per halaman
   int pageIndex = 0;
-  bool hasMore = true;
+  // bool hasMore = true; ini diuncomment jika ingin load more otomatis saat scroll
 
   final List<DataGridRow> _rows = [];
 
@@ -181,17 +255,17 @@ class TableGridSource extends DataGridSource {
   Future<void> loadInitial() async {
     _rows.clear();
     pageIndex = 0;
-    hasMore = true;
+    // hasMore = true;
     notifyListeners();
     await _loadNext();
   }
 
   // Dipanggil otomatis oleh SfDataGrid (VIRTUAL SCROLL)
-  @override
-  Future<void> handleLoadMoreRows() async {
-    if (!hasMore) return;
-    await _loadNext();
-  }
+  // @override
+  // Future<void> handleLoadMoreRows() async {
+  //   if (!hasMore) return;
+  //   await _loadNext();
+  // } ini diuncomment jika ingin load more otomatis saat scroll
 
   Future<void> _loadNext() async {
     final raw = await LocalDatabase.instance.getPageData(
@@ -201,7 +275,7 @@ class TableGridSource extends DataGridSource {
     );
 
     if (raw.isEmpty) {
-      hasMore = false;
+      // hasMore = false;
       return;
     }
 
@@ -215,16 +289,16 @@ class TableGridSource extends DataGridSource {
     _rows
       ..clear()
       ..addAll(_buildRows(raw));
-    hasMore = false;
+    // hasMore = false;
     notifyListeners();
   }
 
-    /// 🔁 Ganti data langsung dengan DataGridRow
+  /// 🔁 Ganti data langsung dengan DataGridRow
   void replaceWithRows(List<DataGridRow> rows) {
     _rows
       ..clear()
       ..addAll(rows);
-    hasMore = false;
+    // hasMore = false;
     notifyListeners();
   }
 
@@ -254,11 +328,15 @@ class TableGridSource extends DataGridSource {
       cells: row.getCells().map((cell) {
         return Padding(
           padding: const EdgeInsets.all(8),
-          child: Text(cell.value.toString(), maxLines:3, softWrap:true, overflow: TextOverflow.fade, style: const TextStyle(fontSize: 14)), //ubah ukuran tabel 
+          child: Text(
+            cell.value.toString(),
+            maxLines: 3,
+            softWrap: true,
+            overflow: TextOverflow.fade,
+            style: const TextStyle(fontSize: 14),
+          ), //ubah ukuran tabel
         );
       }).toList(),
     );
   }
 }
-
-
