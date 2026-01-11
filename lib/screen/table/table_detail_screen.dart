@@ -23,6 +23,7 @@ class _TableDetailScreenState extends State<TableDetailScreen> {
 
   List<Map<String, dynamic>> columns = [];
   late TableGridSource dataSource;
+  Map<String, double> columnWidths = {};
 
   int totalRows = 0;
   int shownRows = 0;
@@ -50,11 +51,53 @@ class _TableDetailScreenState extends State<TableDetailScreen> {
 
     dataSource.replaceWithRaw(raw);
 
+    _calculateColumnWidths(dataSource.rows);
+
     setState(() {
       currentPage = page;
       loading = false;
     });
   }
+
+  void _calculateColumnWidths(List<DataGridRow> rows) {
+  final Map<String, double> widths = {};
+
+  for (final col in columns) {
+    final name = col['name'];
+    double maxWidth = 80; // minimum width
+
+    // ukur header
+    final headerPainter = TextPainter(
+      text: TextSpan(text: name, style: const TextStyle(fontWeight: FontWeight.bold)),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    maxWidth = headerPainter.width + 32;
+
+    // ukur isi (ambil max dari baris yang tampil)
+    for (final row in rows) {
+      final cell = row.getCells().firstWhere((c) => c.columnName == name);
+      final text = cell.value.toString();
+
+      final painter = TextPainter(
+        text: TextSpan(text: text, style: const TextStyle(fontSize: 14)),
+        textDirection: TextDirection.ltr,
+        maxLines: 1,
+      )..layout();
+
+      maxWidth = painter.width + 32 > maxWidth
+          ? painter.width + 32
+          : maxWidth;
+    }
+
+    // batasi supaya tidak terlalu lebar
+    widths[name] = maxWidth.clamp(80, 300);
+  }
+
+  setState(() {
+    columnWidths = widths;
+  });
+}
+
 
   // ================= INIT =================
   Future<void> _init() async {
@@ -172,12 +215,15 @@ class _TableDetailScreenState extends State<TableDetailScreen> {
               //   );
               // }, //uncomment ini jika ingin menampilkan loading di bawah saat load more
               columns: columns.map((c) {
+                final name = c['name'];
+
                 return GridColumn(
-                  columnName: c['name'],
+                  columnName: name,
+                  width: columnWidths[name] ?? 120, //auto width 
                   label: Padding(
                     padding: const EdgeInsets.all(8),
                     child: Text(
-                      c['name'],
+                      name,
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
