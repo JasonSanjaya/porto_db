@@ -25,11 +25,7 @@ class LocalDatabase {
     final dir = await getApplicationDocumentsDirectory();
     final path = join(dir.path, 'porto_db_v5.sqlite');
 
-    final db = await openDatabase(
-      path,
-      version: 1,
-      onCreate: _onCreate,
-    );
+    final db = await openDatabase(path, version: 1, onCreate: _onCreate);
 
     // LIKE konsisten
     await db.execute('PRAGMA case_sensitive_like = OFF');
@@ -112,6 +108,26 @@ class LocalDatabase {
     await db.execute('CREATE INDEX idx_cells_row ON cells(row_id)');
     await db.execute('CREATE INDEX idx_cells_column ON cells(column_id)');
     await db.execute('CREATE INDEX idx_cells_value ON cells(value)');
+  }
+
+  Future<void> deleteTable(int tableId) async {
+    final db = await database;
+
+    // hapus isi cell
+    await db.delete(
+      'cells',
+      where: 'row_id IN (SELECT id FROM rows WHERE table_id = ?)',
+      whereArgs: [tableId],
+    );
+
+    // hapus rows
+    await db.delete('rows', where: 'table_id = ?', whereArgs: [tableId]);
+
+    // hapus columns
+    await db.delete('columns', where: 'table_id = ?', whereArgs: [tableId]);
+
+    // hapus table
+    await db.delete('tables', where: 'id = ?', whereArgs: [tableId]);
   }
 
   // =====================================================
@@ -204,8 +220,7 @@ class LocalDatabase {
 
   Future<Map<String, dynamic>?> getDatabaseById(int id) async {
     final db = await database;
-    final res =
-        await db.query('databases', where: 'id = ?', whereArgs: [id]);
+    final res = await db.query('databases', where: 'id = ?', whereArgs: [id]);
     return res.isEmpty ? null : res.first;
   }
 
@@ -224,8 +239,7 @@ class LocalDatabase {
 
   Future<Map<String, dynamic>?> getTableById(int id) async {
     final db = await database;
-    final res =
-        await db.query('tables', where: 'id = ?', whereArgs: [id]);
+    final res = await db.query('tables', where: 'id = ?', whereArgs: [id]);
     return res.isEmpty ? null : res.first;
   }
 
@@ -243,30 +257,17 @@ class LocalDatabase {
     required String name,
   }) async {
     final db = await database;
-    return db.insert('tables', {
-      'database_id': databaseId,
-      'name': name,
-    });
+    return db.insert('tables', {'database_id': databaseId, 'name': name});
   }
 
   Future<List<Map<String, dynamic>>> getColumns(int tableId) async {
     final db = await database;
-    return db.query(
-      'columns',
-      where: 'table_id = ?',
-      whereArgs: [tableId],
-    );
+    return db.query('columns', where: 'table_id = ?', whereArgs: [tableId]);
   }
 
-  Future<int> insertColumn({
-    required int tableId,
-    required String name,
-  }) async {
+  Future<int> insertColumn({required int tableId, required String name}) async {
     final db = await database;
-    return db.insert('columns', {
-      'table_id': tableId,
-      'name': name,
-    });
+    return db.insert('columns', {'table_id': tableId, 'name': name});
   }
 
   /// 🔥 1 insertRow = 1 baris Excel
@@ -282,15 +283,11 @@ class LocalDatabase {
     required String value,
   }) async {
     final db = await database;
-    await db.insert(
-      'cells',
-      {
-        'row_id': rowId,
-        'column_id': columnId,
-        'value': value,
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert('cells', {
+      'row_id': rowId,
+      'column_id': columnId,
+      'value': value,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   // =========================

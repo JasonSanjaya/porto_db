@@ -186,6 +186,34 @@ class _DatabaseDetailScreenState extends State<DatabaseDetailScreen> {
     );
   }
 
+  Future<void> _confirmDeleteTable(int tableId, String tableName) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Hapus Table'),
+        content: Text(
+          'Yakin ingin menghapus table "$tableName"?\n\nData akan hilang permanen.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true) {
+      await LocalDatabase.instance.deleteTable(tableId);
+      await _loadTables(); // refresh list setelah hapus
+    }
+  }
+
   // ================= UI =================
   @override
   Widget build(BuildContext context) {
@@ -248,6 +276,9 @@ class _DatabaseDetailScreenState extends State<DatabaseDetailScreen> {
                       title: Text(table['name']),
                       onTap: () {
                         context.push('/table/${table['id']}');
+                      },
+                      onLongPress: () {
+                        _confirmDeleteTable(table['id'], table['name']);
                       },
                     );
                   },
