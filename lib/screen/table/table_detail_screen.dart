@@ -159,7 +159,7 @@ class _TableDetailScreenState extends State<TableDetailScreen> {
               source: dataSource,
               columnWidthMode:
                   ColumnWidthMode.lastColumnFill, //ubah lebar di dalam kotak
-              rowHeight: 60, //tinggi per kotak di dalam tabel
+              rowHeight: 50, //tinggi per kotak di dalam tabel
               // loadMoreViewBuilder: (context, loadMoreRows) {
               //   return FutureBuilder(
               //     future: loadMoreRows(),
@@ -326,10 +326,53 @@ class TableGridSource extends DataGridSource {
   DataGridRowAdapter buildRow(DataGridRow row) {
     return DataGridRowAdapter(
       cells: row.getCells().map((cell) {
+        final column = cell.columnName.toUpperCase();
+        String value = cell.value.toString();
+
+        // ===== FORMAT DATE UNTUK KOLOM UPDATE =====
+        if (column == 'UPDATE' && value.contains('-')) {
+          try {
+            final date = DateTime.parse(value);
+            const months = [
+              'JAN',
+              'FEB',
+              'MAR',
+              'APR',
+              'MAY',
+              'JUN',
+              'JUL',
+              'AUG',
+              'SEP',
+              'OCT',
+              'NOV',
+              'DEC',
+            ];
+            value =
+                '${date.day.toString().padLeft(2, '0')}-${months[date.month - 1]}-${date.year}';
+          } catch (_) {
+            // kalau gagal parse, biarkan value asli
+          }
+        }
+
+        // ===== ALIGNMENT =====
+        final isRightAlign = column == 'HET' || column == 'UPDATE';
+
+        //biar supersede tidak turun baris
+        final isSupersede = column == 'SUPERSEDE';
+
         return Padding(
           padding: const EdgeInsets.all(8),
-          child: Text(
-            cell.value.toString(),
+          child: isSupersede ? 
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 14),
+            ),
+          )
+          : Text(
+            value,
+            textAlign: isRightAlign ? TextAlign.right : TextAlign.left,
             maxLines: 3,
             softWrap: true,
             overflow: TextOverflow.fade,
