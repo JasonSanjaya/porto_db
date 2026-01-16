@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_datagrid/datagrid.dart';
 import '../../database/local_database.dart';
+import 'package:go_router/go_router.dart';
 
 class TableDetailScreen extends StatefulWidget {
   final int tableId;
@@ -96,7 +97,7 @@ class _TableDetailScreenState extends State<TableDetailScreen> {
       // widths[name] = maxWidth.clamp(80, 300);
 
       if (name.toUpperCase() == 'UPDATE') {
-        widths[name] = maxWidth.clamp(80, 100); //ubah lebar kolom UPDATE   
+        widths[name] = maxWidth.clamp(80, 100); //ubah lebar kolom UPDATE
       } else {
         widths[name] = maxWidth.clamp(20, 300);
       }
@@ -187,6 +188,19 @@ class _TableDetailScreenState extends State<TableDetailScreen> {
                 ],
               ),
         actions: [
+          // Tombol scan QR
+          IconButton(
+            icon: const Icon(Icons.qr_code_scanner),
+            onPressed: () async {
+              final result = await context.push('/scanner');
+              if (result != null && result is String) {
+                searchController.text = result;
+                await _search(result);
+              }
+            },
+          ),
+
+          // Tombol search teks (yang lama)
           IconButton(
             icon: Icon(isSearching ? Icons.close : Icons.search),
             onPressed: () async {
@@ -194,8 +208,7 @@ class _TableDetailScreenState extends State<TableDetailScreen> {
                 searchController.clear();
                 isSearching = false;
                 shownRows = totalRows;
-                // await dataSource.loadInitial(); uncoment kalau mau infinite scroll
-                await _loadPage(0); //ini untuk pagination bukan scrool infinite
+                await _loadPage(0);
                 setState(() {});
               } else {
                 setState(() => isSearching = true);
@@ -427,9 +440,7 @@ class TableGridSource extends DataGridSource {
         }
 
         // ===== ALIGNMENT =====
-        final isRightAlign = column == 'HET' ;
-
-        
+        final isRightAlign = column == 'HET';
 
         //biar supersede tidak turun baris
         final isSupersede = column == 'SUPERSEDE';
@@ -441,38 +452,38 @@ class TableGridSource extends DataGridSource {
                   scrollDirection: Axis.horizontal,
                   child: Text(value, style: const TextStyle(fontSize: 14)),
                 )
-                : Container(
-    alignment: isRightAlign
-        ? Alignment.centerRight
-        : Alignment.centerLeft,
-    child: Text(
-      value,
-      maxLines: 3,
-      softWrap: true,
-      overflow: TextOverflow.fade,
-      style: const TextStyle(fontSize: 14),
-    ),
-  ),
+              : Container(
+                  alignment: isRightAlign
+                      ? Alignment.centerRight
+                      : Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    maxLines: 3,
+                    softWrap: true,
+                    overflow: TextOverflow.fade,
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ),
 
-              // : Align(
-              //     alignment:
-              //         isRightAlign ? Alignment.centerRight : Alignment.centerLeft,
-              //     child: Text(
-              //       value,
-              //       maxLines: 3,
-              //       softWrap: true,
-              //       overflow: TextOverflow.fade,
-              //       style: const TextStyle(fontSize: 14),
-              //     ),
-              //   ),
-              // : Text(
-              //     value,
-              //     textAlign: isRightAlign ? TextAlign.right : TextAlign.left,
-              //     maxLines: 3,
-              //     softWrap: true,
-              //     overflow: TextOverflow.fade,
-              //     style: const TextStyle(fontSize: 14),
-              //   ), //ubah ukuran tabel
+          // : Align(
+          //     alignment:
+          //         isRightAlign ? Alignment.centerRight : Alignment.centerLeft,
+          //     child: Text(
+          //       value,
+          //       maxLines: 3,
+          //       softWrap: true,
+          //       overflow: TextOverflow.fade,
+          //       style: const TextStyle(fontSize: 14),
+          //     ),
+          //   ),
+          // : Text(
+          //     value,
+          //     textAlign: isRightAlign ? TextAlign.right : TextAlign.left,
+          //     maxLines: 3,
+          //     softWrap: true,
+          //     overflow: TextOverflow.fade,
+          //     style: const TextStyle(fontSize: 14),
+          //   ), //ubah ukuran tabel
         );
       }).toList(),
     );

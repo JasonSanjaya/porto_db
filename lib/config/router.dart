@@ -4,7 +4,7 @@ import '../screen/splash/splash_screen.dart';
 import '../screen/home/home_screen.dart';
 import '../screen/database/database_detail_screen.dart';
 import '../screen/table/table_detail_screen.dart';
-
+import '../screen/scanner/qr_scanner_screen.dart';
 
 final GoRouter router = GoRouter(
   initialLocation: '/', //root route
@@ -21,6 +21,11 @@ final GoRouter router = GoRouter(
         final id = int.parse(state.pathParameters['id']!);
         return TableDetailScreen(tableId: id);
       },
+    ),
+
+    GoRoute(
+      path: '/scanner',
+      builder: (context, state) => const QrScannerScreen(),
     ),
 
     // Database Detail (Isi Tabel)
