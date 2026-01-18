@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 class QrScannerScreen extends StatefulWidget {
   const QrScannerScreen({super.key});
@@ -12,12 +13,28 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
   final MobileScannerController _controller = MobileScannerController(
     detectionSpeed: DetectionSpeed.normal,
   );
+  final AudioPlayer _player = AudioPlayer();
+
+  @override
+  void initState() {
+    super.initState();
+    _player.setReleaseMode(ReleaseMode.stop);
+    _preparePlayer();
+  }
+
+  Future<void> _preparePlayer() async {
+    // Note: asset path here should match pubspec (see below) — no leading "assets/"
+    try {
+      await _player.setSource(AssetSource('sounds/beep.mp3'));
+    } catch (_) {}
+  }
 
   bool _alreadyScanned = false;
 
   @override
   void dispose() {
     _controller.dispose();
+    _player.dispose();
     super.dispose();
   }
 
@@ -37,7 +54,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
                 center: Offset(size.width / 2, size.height / 2),
                 width: boxSize,
                 height: boxSize,
-              );         
+              );
 
               return MobileScanner(
                 controller: _controller,
@@ -50,8 +67,18 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
 
                   if (value != null && value.isNotEmpty) {
                     _alreadyScanned = true;
+
                     await _controller.stop();
-                    await Future.delayed(const Duration(milliseconds: 200));
+
+                    // Play beep from assets (path: "sounds/beep.mp3" as defined in pubspec)
+                    try {
+                      await _player.play(AssetSource('sounds/beep.mp3'), volume: 1.0);
+                    } catch (_) {
+                      // fallback: resume if source was preloaded
+                      try {
+                        await _player.resume();
+                      } catch (_) {}
+                    }
 
                     if (mounted) {
                       Navigator.pop(context, value);
@@ -113,16 +140,10 @@ class _ScannerOverlayPainter extends CustomPainter {
       const Radius.circular(12),
     );
 
-    // 🔑 INI YANG KURANG: saveLayer dulu
     canvas.saveLayer(Rect.fromLTWH(0, 0, size.width, size.height), Paint());
-
-    // Gambar layer gelap
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), overlayPaint);
-
-    // Lubangi bagian tengah (benar-benar transparan)
     final clearPaint = Paint()..blendMode = BlendMode.clear;
     canvas.drawRRect(holeRRect, clearPaint);
-
     canvas.restore();
   }
 

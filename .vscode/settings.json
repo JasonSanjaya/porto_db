@@ -1,3 +1,6 @@
 {
-    "cmake.sourceDirectory": "C:/Users/dunia/Documents/porto_db/windows"
+    "cmake.sourceDirectory": "C:/Users/dunia/Documents/porto_db/windows",
+    "java.project.sourcePaths": [
+        "lib/assets/sounds"
+    ]
 }
