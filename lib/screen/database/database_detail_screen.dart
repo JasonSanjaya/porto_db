@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:csv/csv.dart';
+import 'package:fast_csv/fast_csv.dart' as fastcsv;
 
 import '../../database/local_database.dart';
 
@@ -90,24 +90,17 @@ class _DatabaseDetailScreenState extends State<DatabaseDetailScreen> {
         .transform(utf8.decoder)
         .transform(const LineSplitter());
 
-    final converter = CsvToListConverter(
-      fieldDelimiter: ',',
-      textDelimiter: '"',
-      shouldParseNumbers: false,
-    );
-
     bool headerInserted = false;
     final columnIds = <int>[];
 
-    int rowCount = 0;
-
+    final buffer = <List<String>>[];
+const chunkSize = 500;
     await for (final line in stream) {
       if (line.trim().isEmpty) continue;
 
-      final rows = converter.convert(line);
-      if (rows.isEmpty) continue;
+      final data = fastcsv.parse(line).first;
 
-      final data = rows.first;
+      if (data.isEmpty) continue;
 
       // HEADER
       if (!headerInserted) {
@@ -123,23 +116,31 @@ class _DatabaseDetailScreenState extends State<DatabaseDetailScreen> {
       }
 
       // DATA
-      final rowId = await LocalDatabase.instance.insertRow(tableId);
+        buffer.add(
+    List.generate(columnIds.length, (i) {
+      return i < data.length ? data[i].toString() : '';
+    }),
+  );
 
-      for (int i = 0; i < columnIds.length; i++) {
-        final value = i < data.length ? data[i].toString() : '';
-        await LocalDatabase.instance.setCellValue(
-          rowId: rowId,
-          columnId: columnIds[i],
-          value: value,
-        );
-      }
+  // batch insert tiap 500 baris
+  if (buffer.length >= chunkSize) {
+    await LocalDatabase.instance.insertRowsBatch(
+      tableId: tableId,
+      columnIds: columnIds,
+      rows: buffer,
+    );
+    buffer.clear();
+  }
+}
 
-      rowCount++;
-      if (rowCount % 500 == 0) {
-        await Future.delayed(Duration.zero);
-      }
-    }
-
+// flush sisa buffer
+if (buffer.isNotEmpty) {
+  await LocalDatabase.instance.insertRowsBatch(
+    tableId: tableId,
+    columnIds: columnIds,
+    rows: buffer,
+  );
+}
     // 🔥 PENTING: REFRESH DULU BARU MATIKAN LOADING
     await _loadTables();
 

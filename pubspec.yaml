@@ -35,19 +35,12 @@ dependencies:
   
   sqflite: ^2.4.2
   path_provider: ^2.1.4
-  
   file_picker: ^8.0.0
   csv: ^6.0.0
-
   syncfusion_flutter_datagrid: ^25.1.41
-
   mobile_scanner: ^7.1.4
-
   audioplayers: ^6.0.0
-  
-
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
+  fast_csv: ^0.1.44
   cupertino_icons: ^1.0.8
 
 dev_dependencies:
