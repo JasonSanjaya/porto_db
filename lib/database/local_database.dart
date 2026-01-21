@@ -110,6 +110,11 @@ class LocalDatabase {
     await db.execute('CREATE INDEX idx_cells_value ON cells(value)');
   }
 
+  Future<void> deleteDatabase(int id) async {
+    final db = await database;
+    await db.delete('databases', where: 'id = ?', whereArgs: [id]);
+  }
+
   Future<void> deleteTable(int tableId) async {
     final db = await database;
 
@@ -291,33 +296,30 @@ class LocalDatabase {
   }
 
   Future<void> insertRowsBatch({
-  required int tableId,
-  required List<int> columnIds,
-  required List<List<String>> rows,
-}) async {
-  final db = await database;
+    required int tableId,
+    required List<int> columnIds,
+    required List<List<String>> rows,
+  }) async {
+    final db = await database;
 
-  await db.transaction((txn) async {
-    final batch = txn.batch();
+    await db.transaction((txn) async {
+      final batch = txn.batch();
 
-    for (final row in rows) {
-      final rowId = await txn.insert('rows', {
-        'table_id': tableId,
-      });
+      for (final row in rows) {
+        final rowId = await txn.insert('rows', {'table_id': tableId});
 
-      for (int i = 0; i < columnIds.length; i++) {
-        batch.insert('cells', {
-          'row_id': rowId,
-          'column_id': columnIds[i],
-          'value': row[i],
-        });
+        for (int i = 0; i < columnIds.length; i++) {
+          batch.insert('cells', {
+            'row_id': rowId,
+            'column_id': columnIds[i],
+            'value': row[i],
+          });
+        }
       }
-    }
 
-    await batch.commit(noResult: true);
-  });
-}
-
+      await batch.commit(noResult: true);
+    });
+  }
 
   // =========================
   // CLOSE

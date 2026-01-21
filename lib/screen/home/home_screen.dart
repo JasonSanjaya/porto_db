@@ -38,9 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final q = query.toLowerCase();
     setState(() {
       databases = allDatabases
-          .where(
-            (db) => db['name'].toString().toLowerCase().contains(q),
-          )
+          .where((db) => db['name'].toString().toLowerCase().contains(q))
           .toList();
     });
   }
@@ -57,9 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
           content: TextField(
             controller: controller,
             autofocus: true,
-            decoration: const InputDecoration(
-              hintText: 'Database name',
-            ),
+            decoration: const InputDecoration(hintText: 'Database name'),
           ),
           actions: [
             TextButton(
@@ -117,37 +113,64 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.add),
             onPressed: _showAddDatabaseDialog,
           ),
-          IconButton(
-            icon: const Icon(Icons.more_vert),
-            onPressed: () {},
-          ),
+          IconButton(icon: const Icon(Icons.more_vert), onPressed: () {}),
         ],
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : databases.isEmpty
-              ? const Center(
-                  child: Text(
-                    'No databases',
-                    style: TextStyle(fontSize: 18, color: Colors.white70),
-                  ),
-                )
-              : ListView.separated(
-                  itemCount: databases.length,
-                  separatorBuilder: (_, __) =>
-                      const Divider(color: Colors.white24),
-                  itemBuilder: (context, index) {
-                    final db = databases[index];
-                    return ListTile(
-                      leading: const Icon(Icons.storage),
-                      title: Text(db['name']),
-                      onTap: () {
-                        // PENTING: pakai push, bukan go
-                        context.push('/database/${db['id']}');
-                      },
-                    );
+          ? const Center(
+              child: Text(
+                'No databases',
+                style: TextStyle(fontSize: 18, color: Colors.white70),
+              ),
+            )
+          : ListView.separated(
+              itemCount: databases.length,
+              separatorBuilder: (_, __) => const Divider(color: Colors.white24),
+              itemBuilder: (context, index) {
+                final db = databases[index];
+                return ListTile(
+                  leading: const Icon(Icons.storage),
+                  title: Text(db['name']),
+                  // Tap biasa → masuk database
+                  onTap: () {
+                    context.push('/database/${db['id']}');
                   },
-                ),
+
+                  // LONG PRESS → konfirmasi hapus database
+                  onLongPress: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (_) => AlertDialog(
+                        title: const Text('Hapus Database'),
+                        content: Text(
+                          'Yakin ingin menghapus database "${db['name']}"?\n\nSemua tabel dan data akan ikut terhapus.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Batal'),
+                          ),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                            ),
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('Hapus'),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirm == true) {
+                      await LocalDatabase.instance.deleteDatabase(db['id']);
+                      await _loadDatabases(); // refresh list
+                    }
+                  },
+                );
+              },
+            ),
     );
   }
 }
