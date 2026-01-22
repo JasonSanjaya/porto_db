@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:convert';
 
+import 'package:path/path.dart' as p;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:file_picker/file_picker.dart';
@@ -35,6 +36,36 @@ class _DatabaseDetailScreenState extends State<DatabaseDetailScreen> {
     super.initState();
     _loadDatabaseName();
     _loadTables();
+  }
+
+  Future<String?> _askTableName(String defaultName) async {
+    final controller = TextEditingController(text: defaultName);
+
+    return await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Nama tabel'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'Masukkan nama tabel'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, null),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final value = controller.text.trim();
+              if (value.isEmpty) return;
+              Navigator.pop(context, value);
+            },
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   // ================= LOAD DATABASE NAME =================
@@ -78,7 +109,10 @@ class _DatabaseDetailScreenState extends State<DatabaseDetailScreen> {
     setState(() => isImporting = true);
 
     final file = File(result.files.single.path!);
-    final tableName = result.files.single.name.replaceAll('.csv', '');
+    final defaultName = p.basenameWithoutExtension(result.files.single.name);
+
+    final tableName = await _askTableName(defaultName);
+    if (tableName == null) return; // user tekan batal
 
     final tableId = await LocalDatabase.instance.insertTable(
       databaseId: dbId,
@@ -94,7 +128,7 @@ class _DatabaseDetailScreenState extends State<DatabaseDetailScreen> {
     final columnIds = <int>[];
 
     final buffer = <List<String>>[];
-const chunkSize = 500;
+    const chunkSize = 500;
     await for (final line in stream) {
       if (line.trim().isEmpty) continue;
 
@@ -116,31 +150,31 @@ const chunkSize = 500;
       }
 
       // DATA
-        buffer.add(
-    List.generate(columnIds.length, (i) {
-      return i < data.length ? data[i].toString() : '';
-    }),
-  );
+      buffer.add(
+        List.generate(columnIds.length, (i) {
+          return i < data.length ? data[i].toString() : '';
+        }),
+      );
 
-  // batch insert tiap 500 baris
-  if (buffer.length >= chunkSize) {
-    await LocalDatabase.instance.insertRowsBatch(
-      tableId: tableId,
-      columnIds: columnIds,
-      rows: buffer,
-    );
-    buffer.clear();
-  }
-}
+      // batch insert tiap 500 baris
+      if (buffer.length >= chunkSize) {
+        await LocalDatabase.instance.insertRowsBatch(
+          tableId: tableId,
+          columnIds: columnIds,
+          rows: buffer,
+        );
+        buffer.clear();
+      }
+    }
 
-// flush sisa buffer
-if (buffer.isNotEmpty) {
-  await LocalDatabase.instance.insertRowsBatch(
-    tableId: tableId,
-    columnIds: columnIds,
-    rows: buffer,
-  );
-}
+    // flush sisa buffer
+    if (buffer.isNotEmpty) {
+      await LocalDatabase.instance.insertRowsBatch(
+        tableId: tableId,
+        columnIds: columnIds,
+        rows: buffer,
+      );
+    }
     // 🔥 PENTING: REFRESH DULU BARU MATIKAN LOADING
     await _loadTables();
 
